@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Tracker — Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<header>
+  <div class="logo">Job<span>/</span>Tracker <span class="logo-slash">// </span><span class="logo-subtitle">mission control</span></div>
+  <div class="header-stats">
+    <div class="stat"><div class="stat-num" id="stat-total">—</div><div class="stat-label">Total</div></div>
+    <div class="stat"><div class="stat-num stat-num-active" id="stat-active">—</div><div class="stat-label">Active</div></div>
+    <div class="stat"><div class="stat-num stat-num-interview" id="stat-interview">—</div><div class="stat-label">Interview</div></div>
+    <div class="stat"><div class="stat-num stat-num-stale" id="stat-stale">—</div><div class="stat-label">Stale</div></div>
+  </div>
+</header>
+
+<div class="theme-fab" id="theme-fab">
+  <div class="theme-options" id="theme-options">
+    <button class="theme-icon-btn" id="theme-system" onclick="setThemePreference('system')" title="System" aria-label="Use system theme">◐</button>
+    <button class="theme-icon-btn" id="theme-dark" onclick="setThemePreference('dark')" title="Dark" aria-label="Use dark theme">☾</button>
+    <button class="theme-icon-btn" id="theme-light" onclick="setThemePreference('light')" title="Light" aria-label="Use light theme">☀</button>
+  </div>
+  <button class="theme-fab-toggle" id="theme-fab-toggle" onclick="toggleThemeMenu()" aria-label="Theme options">◐</button>
+</div>
+
+<div id="alert-banner">
+  <div class="alert-icon">🔔</div>
+  <div class="alert-body">
+    <div class="alert-title">Attention Required</div>
+    <div class="alert-message" id="alert-text"></div>
+    <div class="alert-apps" id="alert-apps"></div>
+  </div>
+  <button class="alert-dismiss" onclick="dismissAlert()">×</button>
+</div>
+
+<main>
+  <!-- Add Form -->
+  <div class="add-section">
+    <div class="section-header">Log New Application</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Company *</label>
+        <input type="text" id="f-company" list="company-suggestions" placeholder="Acme Corp" />
+        <datalist id="company-suggestions"></datalist>
+      </div>
+      <div class="field">
+        <label>Role</label>
+        <input type="text" id="f-role" placeholder="Senior Engineer" />
+      </div>
+      <div class="field">
+        <label>Portal / Tracking URL</label>
+        <input type="url" id="f-url" placeholder="https://jobs.company.com/..." />
+      </div>
+      <div class="field">
+        <label for="f-status">Status</label>
+        <select id="f-status">
+          <option value="applied">Applied</option>
+          <option value="interview">Interview</option>
+          <option value="offer">Offer</option>
+          <option value="waitlisted">Waitlisted</option>
+          <option value="ghosted">Ghosted</option>
+          <option value="rejected">Rejected</option>
+          <option value="accepted">Accepted</option>
+          <option value="withdrawn">Withdrawn</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-applied-date">Applied Date (optional)</label>
+        <input type="date" id="f-applied-date" />
+      </div>
+      <div class="field field-end">
+        <button class="btn btn-primary" onclick="addApplication()">+ Log It</button>
+      </div>
+    </div>
+    <div class="field field-notes">
+      <label>Notes</label>
+      <input type="text" id="f-notes" placeholder="Referral from Sarah, applied via LinkedIn..." />
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <button class="filter-chip active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="filter-chip" data-filter="applied" onclick="setFilter('applied', this)">Applied</button>
+    <button class="filter-chip" data-filter="interview" onclick="setFilter('interview', this)">Interview</button>
+    <button class="filter-chip" data-filter="offer" onclick="setFilter('offer', this)">Offer</button>
+    <button class="filter-chip" data-filter="stale" onclick="setFilter('stale', this)">⚡ Stale</button>
+    <button class="filter-chip" data-filter="closed" onclick="setFilter('closed', this)">Closed</button>
+    <select class="sort-select" onchange="setSort(this.value)" aria-label="Sort applications by date">
+      <option value="newest" selected>Newest First</option>
+      <option value="oldest">Oldest First</option>
+    </select>
+    <input class="search-input" type="text" placeholder="Search..." oninput="setSearch(this.value)" />
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <div id="table-body">
+      <div class="loading">LOADING APPLICATIONS...</div>
+    </div>
+  </div>
+</main>
+
+<!-- Edit Modal -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal">
+    <div class="modal-title">Edit Application</div>
+    <div class="modal-grid">
+      <div class="field"><label for="e-company">Company *</label><input type="text" id="e-company" /></div>
+      <div class="field"><label for="e-role">Role</label><input type="text" id="e-role" /></div>
+      <div class="field"><label for="e-url">Portal URL</label><input type="url" id="e-url" /></div>
+      <div class="field">
+        <label for="e-status">Status</label>
+        <select id="e-status">
+          <option value="applied">Applied</option>
+          <option value="interview">Interview</option>
+          <option value="offer">Offer</option>
+          <option value="waitlisted">Waitlisted</option>
+          <option value="ghosted">Ghosted</option>
+          <option value="rejected">Rejected</option>
+          <option value="accepted">Accepted</option>
+          <option value="withdrawn">Withdrawn</option>
+        </select>
+      </div>
+      <div class="field"><label for="e-applied-date">Applied Date (optional)</label><input type="date" id="e-applied-date" /></div>
+      <div class="field"><label for="e-notes">Notes</label><textarea id="e-notes"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const API = '';
+  let allApps = [];
+  let currentFilter = 'all';
+  let currentSearch = '';
+  let currentSort = 'newest';
+  let editingId = null;
+
+  // ── Data ──────────────────────────────────────────────────────────
+  async function loadApplications() {
+    try {
+      const res = await fetch(`${API}/api/applications`);
+      allApps = await res.json();
+      renderTable();
+      updateStats();
+      updateCompanySuggestions();
+    } catch (e) {
+      document.getElementById('table-body').innerHTML =
+        `<div class="loading loading-error">⚠ Could not reach server</div>`;
+    }
+  }
+
+  async function checkAlerts() {
+    try {
+      const res = await fetch(`${API}/api/alert`);
+      const data = await res.json();
+      if (data.count > 0) showAlertBanner(data);
+    } catch {}
+  }
+
+  // ── Render ────────────────────────────────────────────────────────
+  function renderTable() {
+    let apps = [...allApps];
+    const closed = ['rejected', 'accepted', 'withdrawn', 'ghosted'];
+
+    if (currentFilter === 'stale')  apps = apps.filter(a => a.is_stale && !closed.includes(a.status));
+    else if (currentFilter === 'closed') apps = apps.filter(a => closed.includes(a.status));
+    else if (currentFilter !== 'all') apps = apps.filter(a => a.status === currentFilter);
+
+    if (currentSearch) {
+      const s = currentSearch.toLowerCase();
+      apps = apps.filter(a =>
+        a.company.toLowerCase().includes(s) ||
+        (a.role || '').toLowerCase().includes(s) ||
+        (a.notes || '').toLowerCase().includes(s)
+      );
+    }
+
+    apps.sort((a, b) => {
+      const aTs = new Date(a.applied_at).getTime() || 0;
+      const bTs = new Date(b.applied_at).getTime() || 0;
+      return currentSort === 'oldest' ? aTs - bTs : bTs - aTs;
+    });
+
+    const container = document.getElementById('table-body');
+    if (apps.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <div class="empty-title">No applications found</div>
+          <div class="empty-sub">Log your first application above</div>
+        </div>`;
+      return;
+    }
+
+    const grouped = new Map();
+    for (const app of apps) {
+      const companyName = (app.company || '').trim() || 'Unknown Company';
+      if (!grouped.has(companyName)) grouped.set(companyName, []);
+      grouped.get(companyName).push(app);
+    }
+
+    const rows = Array.from(grouped.entries()).map(([companyName, companyApps]) => {
+      const appRows = companyApps.map(a => {
+        const staleClass = a.is_stale && !['rejected','accepted','withdrawn','ghosted'].includes(a.status) ? 'stale' : '';
+        const staleDot = staleClass ? '<span class="stale-dot"></span>' : '';
+        const daysAgo = Math.round(parseFloat(a.days_since_check));
+        const checkLabel = daysAgo === 0 ? 'today' : daysAgo === 1 ? '1d ago' : `${daysAgo}d ago`;
+        const checkClass = a.is_stale ? 'date-stale' : '';
+        const isRejected = a.status === 'rejected';
+        const checkButton = isRejected
+          ? '<span class="action-spacer" aria-hidden="true"></span>'
+          : `<button class="btn-check" onclick="markChecked(${a.id})">✓ Checked</button>`;
+
+        const portalCell = a.portal_url
+          ? `<a class="portal-link" href="${escHtml(a.portal_url)}" target="_blank" rel="noopener">↗ ${domain(a.portal_url)}</a>`
+          : `<span class="muted-dash">—</span>`;
+
+        return `<tr class="${staleClass}" data-id="${a.id}">
+          <td>
+            <div class="role-name">${staleDot}${escHtml(a.role || 'No role specified')}</div>
+          </td>
+          <td>${portalCell}</td>
+          <td><span class="badge badge-${a.status}">${a.status}</span></td>
+          <td><div class="date-cell">${formatDate(a.applied_at)}</div></td>
+          <td><div class="date-cell ${checkClass}">${checkLabel}</div></td>
+          <td class="notes-cell" title="${escHtml(a.notes || '')}">${escHtml(a.notes || '—')}</td>
+          <td>
+            <div class="actions">
+              ${checkButton}
+              <button class="btn btn-ghost btn-ghost-compact" onclick="openEdit(${a.id})">Edit</button>
+              <button class="btn btn-danger" onclick="deleteApp(${a.id})">✕</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      return `
+        <tr class="company-group-row">
+          <td colspan="7">
+            <div class="company-group">
+              <div class="company-group-name">${escHtml(companyName)}</div>
+              <div class="company-group-count">${companyApps.length} application${companyApps.length === 1 ? '' : 's'}</div>
+            </div>
+          </td>
+        </tr>
+        ${appRows}
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Portal</th>
+            <th>Status</th>
+            <th>Applied</th>
+            <th>Last Checked</th>
+            <th>Notes</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function updateStats() {
+    const closed = ['rejected', 'accepted', 'withdrawn', 'ghosted'];
+    const active = allApps.filter(a => !closed.includes(a.status));
+    const interviews = allApps.filter(a => a.status === 'interview');
+    const stale = allApps.filter(a => a.is_stale && !closed.includes(a.status));
+    document.getElementById('stat-total').textContent = allApps.length;
+    document.getElementById('stat-active').textContent = active.length;
+    document.getElementById('stat-interview').textContent = interviews.length;
+    document.getElementById('stat-stale').textContent = stale.length;
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────
+  async function addApplication() {
+    const company = document.getElementById('f-company').value.trim();
+    if (!company) { toast('Company name is required', true); return; }
+
+    const body = {
+      company,
+      role: document.getElementById('f-role').value.trim(),
+      portal_url: document.getElementById('f-url').value.trim() || null,
+      status: document.getElementById('f-status').value,
+      applied_at: document.getElementById('f-applied-date').value || null,
+      notes: document.getElementById('f-notes').value.trim() || null,
+    };
+
+    try {
+      const res = await fetch(`${API}/api/applications`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error();
+      ['f-company','f-role','f-url','f-notes','f-applied-date'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('f-status').value = 'applied';
+      toast(`✓ Logged application to ${company}`);
+      loadApplications();
+    } catch { toast('Failed to save', true); }
+  }
+
+  async function markChecked(id) {
+    try {
+      await fetch(`${API}/api/applications/${id}/check`, { method: 'POST' });
+      toast('✓ Marked as checked');
+      loadApplications();
+    } catch { toast('Failed', true); }
+  }
+
+  async function deleteApp(id) {
+    const app = allApps.find(a => a.id === id);
+    if (!confirm(`Remove ${app?.company}?`)) return;
+    try {
+      await fetch(`${API}/api/applications/${id}`, { method: 'DELETE' });
+      toast('Removed');
+      loadApplications();
+    } catch { toast('Failed', true); }
+  }
+
+  function openEdit(id) {
+    const a = allApps.find(x => x.id === id);
+    if (!a) return;
+    editingId = id;
+    document.getElementById('e-company').value = a.company || '';
+    document.getElementById('e-role').value = a.role || '';
+    document.getElementById('e-url').value = a.portal_url || '';
+    document.getElementById('e-status').value = a.status || 'applied';
+    document.getElementById('e-applied-date').value = toDateInputValue(a.applied_at);
+    document.getElementById('e-notes').value = a.notes || '';
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  async function saveEdit() {
+    if (!editingId) return;
+    const body = {
+      company: document.getElementById('e-company').value.trim(),
+      role: document.getElementById('e-role').value.trim(),
+      portal_url: document.getElementById('e-url').value.trim() || null,
+      status: document.getElementById('e-status').value,
+      applied_at: document.getElementById('e-applied-date').value || null,
+      notes: document.getElementById('e-notes').value.trim() || null,
+    };
+    try {
+      const res = await fetch(`${API}/api/applications/${editingId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error();
+      closeModal();
+      toast('✓ Updated');
+      loadApplications();
+    } catch { toast('Failed to update', true); }
+  }
+
+  function closeModal(e) {
+    if (e && e.target !== document.getElementById('modal-overlay')) return;
+    document.getElementById('modal-overlay').classList.remove('open');
+    editingId = null;
+  }
+
+  // ── Filters ───────────────────────────────────────────────────────
+  function setFilter(filter, el) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    renderTable();
+  }
+  function setSort(val) { currentSort = val; renderTable(); }
+  function setSearch(val) { currentSearch = val; renderTable(); }
+
+  function updateCompanySuggestions() {
+    const datalist = document.getElementById('company-suggestions');
+    if (!datalist) return;
+    const companyNames = Array.from(new Set(
+      allApps.map(a => (a.company || '').trim()).filter(Boolean)
+    )).sort((a, b) => a.localeCompare(b));
+
+    datalist.innerHTML = companyNames
+      .map(name => `<option value="${escHtml(name)}"></option>`)
+      .join('');
+  }
+
+  // ── Alert banner ──────────────────────────────────────────────────
+  function showAlertBanner(data) {
+    const banner = document.getElementById('alert-banner');
+    document.getElementById('alert-text').textContent =
+      `You have ${data.count} application${data.count > 1 ? 's' : ''} you haven't checked on in a few days. Time for a follow-up sweep!`;
+
+    const tagsEl = document.getElementById('alert-apps');
+    tagsEl.innerHTML = data.applications.slice(0, 8).map(a =>
+      `<span class="alert-tag" onclick="focusApp('${escHtml(a.company)}')">${escHtml(a.company)}</span>`
+    ).join('');
+    if (data.applications.length > 8) {
+      tagsEl.innerHTML += `<span class="alert-more">+${data.applications.length - 8} more</span>`;
+    }
+
+    banner.classList.add('visible');
+  }
+
+  function dismissAlert() {
+    document.getElementById('alert-banner').classList.remove('visible');
+  }
+
+  function focusApp(company) {
+    currentSearch = company;
+    document.querySelector('.search-input').value = company;
+    setFilter('all', document.querySelector('[data-filter="all"]'));
+    document.querySelector('main').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────
+  function toast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = isError ? 'error show' : 'show';
+    setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function domain(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ''); }
+    catch { return url; }
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+  }
+
+  function toDateInputValue(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  // ── Theme ────────────────────────────────────────────────────────
+  function getSystemTheme() {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+
+  function updateThemeUi(preference) {
+    const map = {
+      system: document.getElementById('theme-system'),
+      dark: document.getElementById('theme-dark'),
+      light: document.getElementById('theme-light'),
+    };
+
+    Object.values(map).forEach(btn => btn && btn.classList.remove('active'));
+    if (map[preference]) map[preference].classList.add('active');
+
+    const toggle = document.getElementById('theme-fab-toggle');
+    const iconByPreference = { system: '◐', dark: '☾', light: '☀' };
+    if (toggle) toggle.textContent = iconByPreference[preference] || '◐';
+  }
+
+  function setThemePreference(preference) {
+    localStorage.setItem('theme-preference', preference);
+    const resolvedTheme = preference === 'system' ? getSystemTheme() : preference;
+    applyTheme(resolvedTheme);
+    updateThemeUi(preference);
+    closeThemeMenu();
+  }
+
+  function initializeTheme() {
+    const savedPreference = localStorage.getItem('theme-preference') || 'system';
+    setThemePreference(savedPreference);
+  }
+
+  function toggleThemeMenu() {
+    const menu = document.getElementById('theme-options');
+    if (!menu) return;
+    menu.classList.toggle('open');
+  }
+
+  function closeThemeMenu() {
+    const menu = document.getElementById('theme-options');
+    if (menu) menu.classList.remove('open');
+  }
+
+  document.addEventListener('click', (event) => {
+    const fab = document.getElementById('theme-fab');
+    if (!fab) return;
+    if (!fab.contains(event.target)) closeThemeMenu();
+  });
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if ((localStorage.getItem('theme-preference') || 'system') === 'system') {
+      applyTheme(getSystemTheme());
+    }
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────
+  initializeTheme();
+  loadApplications();
+  checkAlerts();
+  // Poll for alerts every 30 minutes
+  setInterval(checkAlerts, 30 * 60 * 1000);
+</script>
+</body>
+</html>
