@@ -27,11 +27,11 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT *,
-        (NOW() - last_checked_at) > INTERVAL '${STALE_DAYS} days' AS is_stale,
+        (NOW() - last_checked_at) > INTERVAL '1 day' * $1 AS is_stale,
         EXTRACT(EPOCH FROM (NOW() - last_checked_at)) / 86400 AS days_since_check
       FROM applications
       ORDER BY applied_at DESC
-    `);
+    `, [STALE_DAYS]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -46,10 +46,10 @@ router.get('/stale', async (req, res) => {
       SELECT *,
         EXTRACT(EPOCH FROM (NOW() - last_checked_at)) / 86400 AS days_since_check
       FROM applications
-      WHERE (NOW() - last_checked_at) > INTERVAL '${STALE_DAYS} days'
-        AND status NOT IN ('${CLOSED_STATUSES.join("', '")}')
+      WHERE (NOW() - last_checked_at) > INTERVAL '1 day' * $1
+        AND status != ALL($2::text[])
       ORDER BY last_checked_at ASC
-    `);
+    `, [STALE_DAYS, CLOSED_STATUSES]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);

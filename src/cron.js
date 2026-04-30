@@ -116,12 +116,12 @@ async function markGhostedApplications() {
     SET status = 'ghosted',
         status_changed_at = NOW()
     WHERE (
-      status = 'applied' AND status_changed_at <= NOW() - INTERVAL '${APPLIED_GHOST_DAYS} days'
+      status = 'applied' AND status_changed_at <= NOW() - INTERVAL '1 day' * $1
     ) OR (
-      status = 'interview' AND status_changed_at <= NOW() - INTERVAL '${INTERVIEW_GHOST_DAYS} days'
+      status = 'interview' AND status_changed_at <= NOW() - INTERVAL '1 day' * $2
     )
     RETURNING company, role
-  `);
+  `, [APPLIED_GHOST_DAYS, INTERVIEW_GHOST_DAYS]);
 
   if (result.rows.length > 0) {
     writeLog('INFO', `Auto-marked ${result.rows.length} application(s) as ghosted`);
@@ -137,10 +137,10 @@ async function checkStaleApplications() {
         ROUND(EXTRACT(EPOCH FROM (NOW() - last_checked_at)) / 86400) AS days_since_check,
         portal_url
       FROM applications
-      WHERE (NOW() - last_checked_at) > INTERVAL '${STALE_DAYS} days'
-        AND status NOT IN ('rejected', 'accepted', 'withdrawn', 'ghosted')
+      WHERE (NOW() - last_checked_at) > INTERVAL '1 day' * $1
+        AND status != ALL($2::text[])
       ORDER BY last_checked_at ASC
-    `);
+    `, [STALE_DAYS, ['rejected', 'accepted', 'withdrawn', 'ghosted']]);
 
     if (result.rows.length > 0) {
       latestAlert = {
