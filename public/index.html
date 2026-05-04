@@ -147,6 +147,16 @@
   let currentSearch = '';
   let currentSort = 'newest';
   let editingId = null;
+  const collapsedCompanyGroups = new Set();
+  const mobileTableMediaQuery = window.matchMedia('(max-width: 760px)');
+
+  function normalizeCompanyKey(companyName) {
+    return String(companyName || '').trim().toLowerCase();
+  }
+
+  function isMobileTableView() {
+    return mobileTableMediaQuery.matches;
+  }
 
   // ── Data ──────────────────────────────────────────────────────────
   async function loadApplications() {
@@ -213,6 +223,8 @@
     }
 
     const rows = Array.from(grouped.entries()).map(([companyName, companyApps]) => {
+      const companyKey = normalizeCompanyKey(companyName);
+      const isCollapsed = isMobileTableView() && collapsedCompanyGroups.has(companyKey);
       const appRows = companyApps.map(a => {
         const staleClass = a.is_stale && !['rejected','accepted','withdrawn','ghosted'].includes(a.status) ? 'stale' : '';
         const staleDot = staleClass ? '<span class="stale-dot"></span>' : '';
@@ -229,15 +241,15 @@
           : `<span class="muted-dash">—</span>`;
 
         return `<tr class="${staleClass}" data-id="${a.id}">
-          <td>
+          <td data-label="Role">
             <div class="role-name">${staleDot}${escHtml(a.role || 'No role specified')}</div>
           </td>
-          <td>${portalCell}</td>
-          <td><span class="badge badge-${a.status}">${a.status}</span></td>
-          <td><div class="date-cell">${formatDate(a.applied_at)}</div></td>
-          <td><div class="date-cell ${checkClass}">${checkLabel}</div></td>
-          <td class="notes-cell" title="${escHtml(a.notes || '')}">${escHtml(a.notes || '—')}</td>
-          <td>
+          <td data-label="Portal">${portalCell}</td>
+          <td data-label="Status"><span class="badge badge-${a.status}">${a.status}</span></td>
+          <td data-label="Applied"><div class="date-cell">${formatDate(a.applied_at)}</div></td>
+          <td data-label="Last Checked"><div class="date-cell ${checkClass}">${checkLabel}</div></td>
+          <td data-label="Notes" class="notes-cell" title="${escHtml(a.notes || '')}">${escHtml(a.notes || '—')}</td>
+          <td data-label="Actions">
             <div class="actions">
               ${checkButton}
               <button class="btn btn-ghost btn-ghost-compact" onclick="openEdit(${a.id})">Edit</button>
@@ -248,15 +260,25 @@
       }).join('');
 
       return `
-        <tr class="company-group-row">
+        <tr class="company-group-row ${isCollapsed ? 'collapsed' : ''}">
           <td colspan="7">
-            <div class="company-group">
-              <div class="company-group-name">${escHtml(companyName)}</div>
-              <div class="company-group-count">${companyApps.length} application${companyApps.length === 1 ? '' : 's'}</div>
-            </div>
+            <button
+              class="company-group-toggle"
+              onclick='toggleCompanyGroup(${JSON.stringify(companyKey)})'
+              aria-expanded="${isCollapsed ? 'false' : 'true'}"
+              aria-label="${isCollapsed ? 'Expand' : 'Collapse'} ${escHtml(companyName)} applications"
+            >
+              <div class="company-group">
+                <div class="company-group-name">${escHtml(companyName)}</div>
+                <div class="company-group-count-wrap">
+                  <div class="company-group-count">${companyApps.length} application${companyApps.length === 1 ? '' : 's'}</div>
+                  <span class="company-group-chevron" aria-hidden="true">▾</span>
+                </div>
+              </div>
+            </button>
           </td>
         </tr>
-        ${appRows}
+        ${isCollapsed ? '' : appRows}
       `;
     }).join('');
 
@@ -383,6 +405,13 @@
   }
   function setSort(val) { currentSort = val; renderTable(); }
   function setSearch(val) { currentSearch = val; renderTable(); }
+
+  function toggleCompanyGroup(companyKey) {
+    if (!isMobileTableView()) return;
+    if (collapsedCompanyGroups.has(companyKey)) collapsedCompanyGroups.delete(companyKey);
+    else collapsedCompanyGroups.add(companyKey);
+    renderTable();
+  }
 
   function updateCompanySuggestions() {
     const datalist = document.getElementById('company-suggestions');
@@ -514,6 +543,10 @@
     if ((localStorage.getItem('theme-preference') || 'system') === 'system') {
       applyTheme(getSystemTheme());
     }
+  });
+
+  mobileTableMediaQuery.addEventListener('change', () => {
+    renderTable();
   });
 
   // ── Init ──────────────────────────────────────────────────────────
