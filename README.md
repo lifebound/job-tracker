@@ -90,23 +90,13 @@ LOG_DIR=./logs
 LOG_FILE=cron.log
 ```
 
-### 2. Create the database (if it doesn't exist yet)
-
-Connect to your Postgres Docker container and create the database:
-
-```bash
-docker exec -it <your-postgres-container-name> psql -U postgres -c "CREATE DATABASE jobtracker;"
-```
-
-Or if you want to use an existing database, just set `DB_NAME` to it — the app will create its own `applications` table automatically.
-
-### 3. Install dependencies
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 4. Start the app
+### 3. Start the app
 
 ```bash
 npm start
