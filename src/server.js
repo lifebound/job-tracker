@@ -9,7 +9,7 @@ const { initDb, pool } = require('./db');
 const applicationsRouter = require('./routes');
 const authRouter = require('./auth');
 const { requireAuth } = require('./middleware');
-const { startCron, getLatestAlert } = require('./cron');
+const { startCron } = require('./cron');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -65,11 +65,6 @@ app.use('/auth', authLimiter, authRouter);
 // API routes
 app.use('/api', apiLimiter);
 app.use('/api/applications', requireAuth, writeLimiter, applicationsRouter);
-
-// Alert endpoint — frontend polls this
-app.get('/api/alert', requireAuth, (req, res) => {
-  res.json(getLatestAlert() || { count: 0, applications: [] });
-});
 
 // Serve the frontend for any non-API route
 app.get('*', (req, res) => {
