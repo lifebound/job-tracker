@@ -28,6 +28,8 @@ docker compose down -v
 
 All configuration lives in `docker-compose.yml` under `app.environment`. Defaults work out of the box — no `.env` file needed for Docker.
 
+> **Deploying outside a local machine?** The PostgreSQL port is bound to `127.0.0.1` by default, so it is only reachable from the host. If you are running this on a VPS or any internet-facing server and believe you will need administrative access to the database, also change the default `POSTGRES_PASSWORD` and the `DB_PASSWORD` in `docker-compose.yml` to a strong unique value before starting the stack.
+
 ---
 
 ## Features
