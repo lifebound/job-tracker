@@ -37,6 +37,8 @@ const authLimiter = rateLimit({
 });
 
 app.use(cors());
+// Import endpoint needs a higher body limit; mount before the global parser so it takes precedence
+app.use('/api/applications/import', express.json({ limit: '512kb' }));
 app.use(express.json({ limit: '10kb' }));
 app.use(session({
   store: new pgSession({ pool, tableName: 'user_sessions', createTableIfMissing: true }),

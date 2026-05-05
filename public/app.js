@@ -415,7 +415,58 @@ async function logout() {
   await fetch('/auth/logout', { method: 'POST' });
   window.location.href = '/login';
 }
+// ── Export / Import ───────────────────────────────────────────────────────────
+async function exportApplications() {
+  const res = await fetch(`${API}/api/applications/export`);
+  if (res.status === 401) { redirectToLogin(); return; }
+  if (!res.ok) { toast('Export failed', true); return; }
 
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `job-tracker-export-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importApplications(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  let data;
+  try {
+    const text = await file.text();
+    data = JSON.parse(text);
+  } catch {
+    toast('Invalid JSON file', true);
+    input.value = '';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/applications/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.status === 401) { redirectToLogin(); return; }
+    const result = await res.json();
+    if (!res.ok) {
+      const detail = result.errors
+        ? ` — ${result.errors.length} validation error${result.errors.length > 1 ? 's' : ''}`
+        : '';
+      toast(`Import failed${detail}`, true);
+      if (result.errors) console.error('Import validation errors:', result.errors);
+    } else {
+      toast(`✓ Imported ${result.imported} application${result.imported !== 1 ? 's' : ''}`);
+      loadApplications();
+    }
+  } catch {
+    toast('Import failed', true);
+  }
+  input.value = '';
+}
 // ── Theme ─────────────────────────────────────────────────────────
 function getSystemTheme() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';

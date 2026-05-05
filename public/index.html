@@ -40,6 +40,17 @@
         <span>hrs</span>
       </div>
     </div>
+    <div class="settings-divider"></div>
+    <div class="settings-row">
+      <label>Data</label>
+      <div class="settings-data-btns">
+        <button class="btn btn-ghost btn-ghost-compact" onclick="exportApplications()">Export</button>
+        <label class="btn btn-ghost btn-ghost-compact settings-import-label">
+          Import
+          <input type="file" accept=".json" onchange="importApplications(this)" style="display:none" />
+        </label>
+      </div>
+    </div>
   </div>
   <button class="settings-fab-toggle" id="settings-fab-toggle" onclick="toggleSettingsPanel()" aria-label="Settings">⚙</button>
 </div>

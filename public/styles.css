@@ -298,8 +298,18 @@
       display: flex;
       align-items: center;
       gap: 5px;
-      font-size: 12px;
-      color: var(--text-dim);
+    }
+    .settings-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 2px 0;
+    }
+    .settings-data-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .settings-import-label {
+      cursor: pointer;
     }
     .settings-input-group input {
       width: 44px; padding: 3px 5px; font-size: 12px; text-align: center;

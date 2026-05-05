@@ -49,6 +49,111 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/applications/export — download all applications as JSON
+router.get('/export', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT company, role, portal_url, status, notes,
+             applied_at, status_changed_at, last_checked_at, created_at
+      FROM applications
+      WHERE user_id = $1
+      ORDER BY applied_at DESC
+    `, [req.session.userId]);
+
+    const filename = `job-tracker-export-${new Date().toISOString().slice(0, 10)}.json`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/json');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// POST /api/applications/import — bulk insert from JSON export
+router.post('/import', async (req, res) => {
+  const rows = req.body;
+
+  if (!Array.isArray(rows)) {
+    return res.status(400).json({ error: 'Expected a JSON array' });
+  }
+  if (rows.length === 0) {
+    return res.status(400).json({ error: 'File contains no records' });
+  }
+  if (rows.length > 10000) {
+    return res.status(400).json({ error: 'Too many records (max 10,000)' });
+  }
+
+  // Validate all rows before inserting anything
+  const errors = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const rowNum = i + 1;
+    if (typeof r !== 'object' || r === null || Array.isArray(r)) {
+      errors.push({ row: rowNum, error: 'Each record must be an object' });
+      continue;
+    }
+    if (!r.company || typeof r.company !== 'string' || !r.company.trim()) {
+      errors.push({ row: rowNum, error: 'company is required' });
+    }
+    if (r.status && !VALID_STATUSES.has(r.status)) {
+      errors.push({ row: rowNum, error: `Invalid status: "${r.status}"` });
+    }
+    if (r.portal_url && !SAFE_URL_REGEX.test(String(r.portal_url))) {
+      errors.push({ row: rowNum, error: 'portal_url must start with http:// or https://' });
+    }
+    if (r.applied_at && normalizeAppliedAt(r.applied_at) === undefined) {
+      errors.push({ row: rowNum, error: 'Invalid applied_at date' });
+    }
+    if (r.status_changed_at && isNaN(new Date(r.status_changed_at).getTime())) {
+      errors.push({ row: rowNum, error: 'Invalid status_changed_at date' });
+    }
+    if (r.last_checked_at && isNaN(new Date(r.last_checked_at).getTime())) {
+      errors.push({ row: rowNum, error: 'Invalid last_checked_at date' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ error: 'Validation failed', errors });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const r of rows) {
+      await client.query(
+        `INSERT INTO applications
+           (company, role, portal_url, status, notes,
+            applied_at, status_changed_at, last_checked_at, user_id)
+         VALUES ($1, $2, $3, $4, $5,
+           COALESCE($6::timestamptz, NOW()),
+           COALESCE($7::timestamptz, NOW()),
+           COALESCE($8::timestamptz, NOW()),
+           $9)`,
+        [
+          r.company.trim(),
+          r.role || '',
+          normalizePortalUrl(r.portal_url),
+          r.status || 'applied',
+          r.notes || null,
+          r.applied_at || null,
+          r.status_changed_at || null,
+          r.last_checked_at || null,
+          req.session.userId,
+        ]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ imported: rows.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Import failed' });
+  } finally {
+    client.release();
+  }
+});
+
 // GET /api/applications/stale — only stale ones (for alert banner)
 router.get('/stale', async (req, res) => {
   try {
