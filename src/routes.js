@@ -6,6 +6,15 @@ const STALE_DAYS = parseInt(process.env.STALE_DAYS || '3');
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const VALID_STATUSES = new Set(['applied', 'interview', 'offer', 'waitlisted', 'rejected', 'accepted', 'withdrawn', 'ghosted']);
 const CLOSED_STATUSES = ['rejected', 'accepted', 'withdrawn', 'ghosted'];
+const SAFE_URL_REGEX = /^https?:\/\//i;
+
+function normalizePortalUrl(value) {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  if (!SAFE_URL_REGEX.test(trimmed)) return null;
+  return trimmed;
+}
 
 function normalizeAppliedAt(value) {
   if (value === undefined || value === null || value === '') return null;
@@ -69,7 +78,10 @@ router.post('/', async (req, res) => {
   if (normalizedAppliedAt === undefined) {
     return res.status(400).json({ error: 'Invalid applied_at date format' });
   }
-
+  const normalizedPortalUrl = normalizePortalUrl(portal_url);
+  if (portal_url && normalizedPortalUrl === null) {
+    return res.status(400).json({ error: 'Invalid portal URL: must start with http:// or https://' });
+  }
   const normalizedStatus = status || 'applied';
 
   try {
@@ -88,7 +100,7 @@ router.post('/', async (req, res) => {
          END
        )
        RETURNING *`,
-      [company, role || '', portal_url || null, normalizedStatus, notes || null, normalizedAppliedAt]
+      [company, role || '', normalizedPortalUrl, normalizedStatus, notes || null, normalizedAppliedAt]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -110,12 +122,17 @@ router.patch('/:id', async (req, res) => {
     return res.status(400).json({ error: 'Invalid applied_at date format' });
   }
 
+  const normalizedPortalUrl = normalizePortalUrl(portal_url);
+  if (portal_url && normalizedPortalUrl === null) {
+    return res.status(400).json({ error: 'Invalid portal URL: must start with http:// or https://' });
+  }
+
   try {
     const result = await pool.query(
       `UPDATE applications
        SET company    = COALESCE($1, company),
            role       = COALESCE($2, role),
-           portal_url = COALESCE($3, portal_url),
+           portal_url = CASE WHEN $3::text IS NOT NULL THEN $3 ELSE portal_url END,
            status     = COALESCE($4, status),
            notes      = COALESCE($5, notes),
            applied_at = COALESCE($6::timestamptz, applied_at),
@@ -125,7 +142,7 @@ router.patch('/:id', async (req, res) => {
            END
        WHERE id = $7
        RETURNING *`,
-      [company, role, portal_url, status, notes, normalizedAppliedAt, id]
+      [company, role, normalizedPortalUrl, status, notes, normalizedAppliedAt, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);

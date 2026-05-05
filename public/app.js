@@ -126,8 +126,9 @@ function renderTable() {
         ? '<span class="action-spacer" aria-hidden="true"></span>'
         : `<button class="btn-check" onclick="markChecked(${a.id})">✓ Checked</button>`;
 
-      const portalCell = a.portal_url
-        ? `<a class="portal-link" href="${escHtml(a.portal_url)}" target="_blank" rel="noopener">↗ ${domain(a.portal_url)}</a>`
+      const safePortalUrl = /^https?:\/\//i.test(a.portal_url || '') ? a.portal_url : null;
+      const portalCell = safePortalUrl
+        ? `<a class="portal-link" href="${escHtml(safePortalUrl)}" target="_blank" rel="noopener">↗ ${domain(safePortalUrl)}</a>`
         : `<span class="muted-dash">—</span>`;
 
       return `<tr class="${staleClass}" data-id="${a.id}">
