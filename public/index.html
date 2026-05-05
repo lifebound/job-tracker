@@ -240,8 +240,8 @@
         const daysAgo = Math.round(parseFloat(a.days_since_check));
         const checkLabel = daysAgo === 0 ? 'today' : daysAgo === 1 ? '1d ago' : `${daysAgo}d ago`;
         const checkClass = a.is_stale ? 'date-stale' : '';
-        const isRejected = a.status === 'rejected';
-        const checkButton = isRejected
+        const isClosed = ['rejected', 'accepted', 'withdrawn', 'ghosted'].includes(a.status);
+        const checkButton = isClosed
           ? '<span class="action-spacer" aria-hidden="true"></span>'
           : `<button class="btn-check" onclick="markChecked(${a.id})">✓ Checked</button>`;
 
