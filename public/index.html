@@ -173,11 +173,20 @@
   }
 
   async function checkAlerts() {
+    console.log('[checkAlerts] fetching /api/applications/stale');
     try {
-      const res = await fetch(`${API}/api/alert`);
-      const data = await res.json();
-      if (data.count > 0) showAlertBanner(data);
-    } catch {}
+      const apps = await fetch(`${API}/api/applications/stale`).then(r => r.json());
+      console.log(`[checkAlerts] response: ${apps.length} stale app(s)`, apps.map(a => ({ id: a.id, company: a.company, days: parseFloat(a.days_since_check).toFixed(1) })));
+      if (apps.length > 0) {
+        console.log('[checkAlerts] showing alert banner');
+        showAlertBanner({ count: apps.length, applications: apps });
+      } else {
+        console.log('[checkAlerts] no stale apps — dismissing banner');
+        dismissAlert();
+      }
+    } catch (err) {
+      console.error('[checkAlerts] fetch failed:', err);
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────
@@ -338,11 +347,18 @@
   }
 
   async function markChecked(id) {
+    console.log(`[markChecked] marking id=${id} as checked`);
     try {
-      await fetch(`${API}/api/applications/${id}/check`, { method: 'POST' });
+      const res = await fetch(`${API}/api/applications/${id}/check`, { method: 'POST' });
+      const updated = await res.json();
+      console.log(`[markChecked] server response for id=${id}:`, { last_checked_at: updated.last_checked_at, status: updated.status });
       toast('✓ Marked as checked');
       loadApplications();
-    } catch { toast('Failed', true); }
+      checkAlerts();
+    } catch (err) {
+      console.error('[markChecked] failed:', err);
+      toast('Failed', true);
+    }
   }
 
   async function deleteApp(id) {
