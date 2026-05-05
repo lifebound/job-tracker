@@ -10,6 +10,10 @@ let editingId = null;
 const collapsedCompanyGroups = new Set();
 const mobileTableMediaQuery = window.matchMedia('(max-width: 760px)');
 
+function redirectToLogin() {
+  window.location.href = '/login';
+}
+
 function normalizeCompanyKey(companyName) {
   return String(companyName || '').trim().toLowerCase();
 }
@@ -22,6 +26,7 @@ function isMobileTableView() {
 async function loadApplications() {
   try {
     const res = await fetch(`${API}/api/applications`);
+    if (res.status === 401) { redirectToLogin(); return; }
     allApps = await res.json();
     renderTable();
     updateStats();
@@ -35,7 +40,9 @@ async function loadApplications() {
 async function checkAlerts() {
   console.log('[checkAlerts] fetching /api/applications/stale');
   try {
-    const apps = await fetch(`${API}/api/applications/stale`).then(r => r.json());
+    const res = await fetch(`${API}/api/applications/stale`);
+    if (res.status === 401) { redirectToLogin(); return; }
+    const apps = await res.json();
     console.log(`[checkAlerts] response: ${apps.length} stale app(s)`, apps.map(a => ({ id: a.id, company: a.company, days: parseFloat(a.days_since_check).toFixed(1) })));
 
     if (apps.length === 0) {
@@ -220,6 +227,7 @@ async function addApplication() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
+    if (res.status === 401) { redirectToLogin(); return; }
     if (!res.ok) throw new Error();
     ['f-company','f-role','f-url','f-notes','f-applied-date'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('f-status').value = 'applied';
@@ -232,6 +240,7 @@ async function markChecked(id) {
   console.log(`[markChecked] marking id=${id} as checked`);
   try {
     const res = await fetch(`${API}/api/applications/${id}/check`, { method: 'POST' });
+    if (res.status === 401) { redirectToLogin(); return; }
     const updated = await res.json();
     console.log(`[markChecked] server response for id=${id}:`, { last_checked_at: updated.last_checked_at, status: updated.status });
     toast('✓ Marked as checked');
@@ -247,7 +256,8 @@ async function deleteApp(id) {
   const app = allApps.find(a => a.id === id);
   if (!confirm(`Remove ${app?.company}?`)) return;
   try {
-    await fetch(`${API}/api/applications/${id}`, { method: 'DELETE' });
+    const res = await fetch(`${API}/api/applications/${id}`, { method: 'DELETE' });
+    if (res.status === 401) { redirectToLogin(); return; }
     toast('Removed');
     loadApplications();
   } catch { toast('Failed', true); }
@@ -281,6 +291,7 @@ async function saveEdit() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
+    if (res.status === 401) { redirectToLogin(); return; }
     if (!res.ok) throw new Error();
     closeModal();
     toast('✓ Updated');
@@ -397,6 +408,12 @@ function toDateInputValue(iso) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+// ── Auth ──────────────────────────────────────────────────────────
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST' });
+  window.location.href = '/login';
 }
 
 // ── Theme ─────────────────────────────────────────────────────────

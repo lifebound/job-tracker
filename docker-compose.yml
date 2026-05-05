@@ -33,6 +33,7 @@ services:
       DB_USER: jobtracker
       DB_PASSWORD: ${POSTGRES_PASSWORD:-jobtracker}
       PORT: 3000
+      SESSION_SECRET: ${SESSION_SECRET:-dev-local-secret-change-me}
       STALE_DAYS: 3
       APPLIED_GHOST_DAYS: 21
       INTERVIEW_GHOST_DAYS: 5

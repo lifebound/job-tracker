@@ -39,8 +39,9 @@ router.get('/', async (req, res) => {
         (NOW() - last_checked_at) > INTERVAL '1 day' * $1 AS is_stale,
         EXTRACT(EPOCH FROM (NOW() - last_checked_at)) / 86400 AS days_since_check
       FROM applications
+      WHERE user_id = $2
       ORDER BY applied_at DESC
-    `, [STALE_DAYS]);
+    `, [STALE_DAYS, req.session.userId]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -57,8 +58,9 @@ router.get('/stale', async (req, res) => {
       FROM applications
       WHERE (NOW() - last_checked_at) > INTERVAL '1 day' * $1
         AND status != ALL($2::text[])
+        AND user_id = $3
       ORDER BY last_checked_at ASC
-    `, [STALE_DAYS, CLOSED_STATUSES]);
+    `, [STALE_DAYS, CLOSED_STATUSES, req.session.userId]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -86,7 +88,7 @@ router.post('/', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO applications (company, role, portal_url, status, notes, applied_at, status_changed_at)
+      `INSERT INTO applications (company, role, portal_url, status, notes, applied_at, status_changed_at, user_id)
        VALUES (
          $1,
          $2,
@@ -97,10 +99,11 @@ router.post('/', async (req, res) => {
          CASE
            WHEN $4 = 'applied' THEN COALESCE($6::timestamptz, NOW())
            ELSE NOW()
-         END
+         END,
+         $7
        )
        RETURNING *`,
-      [company, role || '', normalizedPortalUrl, normalizedStatus, notes || null, normalizedAppliedAt]
+      [company, role || '', normalizedPortalUrl, normalizedStatus, notes || null, normalizedAppliedAt, req.session.userId]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -140,9 +143,9 @@ router.patch('/:id', async (req, res) => {
              WHEN $4 IS NOT NULL AND $4 <> status THEN NOW()
              ELSE status_changed_at
            END
-       WHERE id = $7
+       WHERE id = $7 AND user_id = $8
        RETURNING *`,
-      [company, role, normalizedPortalUrl, status, notes, normalizedAppliedAt, id]
+      [company, role, normalizedPortalUrl, status, notes, normalizedAppliedAt, id, req.session.userId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
@@ -157,8 +160,8 @@ router.post('/:id/check', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(
-      `UPDATE applications SET last_checked_at = NOW() WHERE id = $1 RETURNING *`,
-      [id]
+      `UPDATE applications SET last_checked_at = NOW() WHERE id = $1 AND user_id = $2 RETURNING *`,
+      [id, req.session.userId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json(result.rows[0]);
@@ -173,8 +176,8 @@ router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(
-      `DELETE FROM applications WHERE id = $1 RETURNING id`,
-      [id]
+      `DELETE FROM applications WHERE id = $1 AND user_id = $2 RETURNING id`,
+      [id, req.session.userId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
     res.json({ deleted: true, id });

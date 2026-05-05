@@ -12,6 +12,13 @@ async function initDb() {
   const client = await pool.connect();
   try {
     await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id            SERIAL PRIMARY KEY,
+        email         TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
       CREATE TABLE IF NOT EXISTS applications (
         id          SERIAL PRIMARY KEY,
         company     TEXT NOT NULL,
@@ -55,6 +62,9 @@ async function initDb() {
       CREATE TRIGGER set_updated_at
         BEFORE UPDATE ON applications
         FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+      ALTER TABLE applications
+      ADD COLUMN IF NOT EXISTS user_id INT REFERENCES users(id);
     `);
     console.log('✅ Database initialized');
   } finally {
