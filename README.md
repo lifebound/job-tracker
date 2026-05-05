@@ -5,7 +5,7 @@ A clean, fast job application tracker with PostgreSQL persistence and stale-appl
 ## Stack
 
 - **Backend**: Node.js + Express
-- **Database**: PostgreSQL (your existing Docker container)
+- **Database**: PostgreSQL
 - **Frontend**: Single-page app served by the backend
 
 ---
