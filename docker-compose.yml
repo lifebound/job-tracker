@@ -34,6 +34,8 @@ services:
       DB_PASSWORD: jobtracker
       PORT: 3000
       STALE_DAYS: 3
+      APPLIED_GHOST_DAYS: 21
+      INTERVIEW_GHOST_DAYS: 5
       EMAIL_ALERTS_ENABLED: "false"
       SMTP_HOST: ""
       SMTP_PORT: 587

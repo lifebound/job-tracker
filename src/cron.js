@@ -5,8 +5,8 @@ const path = require('path');
 const { pool } = require('./db');
 
 const STALE_DAYS = parseInt(process.env.STALE_DAYS || '3');
-const APPLIED_GHOST_DAYS = 21;
-const INTERVIEW_GHOST_DAYS = 5;
+const APPLIED_GHOST_DAYS = parseInt(process.env.APPLIED_GHOST_DAYS || '21');
+const INTERVIEW_GHOST_DAYS = parseInt(process.env.INTERVIEW_GHOST_DAYS || '5');
 
 const EMAIL_ALERTS_ENABLED = ['1', 'true', 'yes', 'on'].includes((process.env.EMAIL_ALERTS_ENABLED || 'false').toLowerCase());
 const SMTP_HOST = process.env.SMTP_HOST || '';
