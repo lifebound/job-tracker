@@ -16,3 +16,4 @@ npm-debug.log*
 
 # pm2
 ecosystem.config.cjs
+.env
